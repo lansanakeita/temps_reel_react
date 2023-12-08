@@ -15,19 +15,29 @@ const ChatComponent = () => {
   const [userId, setUserId] = useState();
   const [inputMessage, setInputMessage] = useState("");
   const [messages, setMessages] = useState([]);
-  const [modalContent, setModalContent] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [titleModale, setTitleModale] = useState("");
+  const [modalContent, setModalContent] = useState("");
+  const [secondModalContent, setSecondModalContent] = useState([]);
+  const [isSecondModalOpen, setIsSecondModalOpen] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState([]);
 
   /**
-   * Gestion de la modale
+   * Gestion des modales
    */
   const showModal = () => {
     setIsModalOpen(true);
   };
   const handleCancel = () => {
     setIsModalOpen(false);
+  };
+
+  const showSecondModal = () => {
+    setIsSecondModalOpen(true);
+  };
+
+  const handleCancelSecondModal = () => {
+    setIsSecondModalOpen(false);
   };
 
   /**
@@ -52,7 +62,11 @@ const ChatComponent = () => {
   useEffect(() => {
     socket.on(MESSAGE_EVENT, (newMessage) => {
       // Ne pas ajouter le message à la liste affichée s'il s'agit d'une traduction ou vérification
-      if (!newMessage.isTranslation && !newMessage.isValidate) {
+      if (
+        !newMessage.isTranslation &&
+        !newMessage.isValidate &&
+        !newMessage.isSuggestion
+      ) {
         setMessages((prevMessages) => [
           ...prevMessages,
           {
@@ -62,12 +76,15 @@ const ChatComponent = () => {
           },
         ]);
       }
-
+      console.log("la réponse recu est :", newMessage);
       if (newMessage.isTranslation) {
         translateMessage(newMessage.content);
       }
       if (newMessage.isValidate) {
         validateMessage(newMessage.content);
+      }
+      if (newMessage.isSuggestion) {
+        suggestionMessage(newMessage.content);
       }
     });
   }, []);
@@ -103,7 +120,7 @@ const ChatComponent = () => {
    * @param {*} option correspond à la langue de traduction
    * @param {*} message correspond au message a truire
    */
-  const handleTranslateButtonClick = (option, message) => {
+  const sendTranslation = (option, message) => {
     const language = option.value;
 
     socket.emit(MESSAGE_EVENT, {
@@ -112,10 +129,6 @@ const ChatComponent = () => {
       isTranslation: true,
     });
   };
-
-  // useEffect(() => {
-  //   console.log({ messages });
-  // }, [messages]);
 
   /**
    * Récupère le message qui sera dans la modale après une traduction
@@ -131,7 +144,7 @@ const ChatComponent = () => {
    * Envoie le contenu du message pour une valider
    * @param {*} message
    */
-  const isValidCkick = (message) => {
+  const sendValidation = (message) => {
     socket.emit(MESSAGE_EVENT, {
       content: message,
       isValidate: true,
@@ -151,16 +164,28 @@ const ChatComponent = () => {
   /**
    * Gestion du button suggestion
    */
-  const suggestion = () => {
-    // Utilisation d'une boucle forEach pour itérer à travers les messages
-    messages.forEach((message, index) => {
-      // Accès à la propriété "content" de chaque message
-      console.log(`Contenu du message ${index + 1}: ${message.content}`);
+  const sendSuggestion = () => {
+    socket.emit(MESSAGE_EVENT, {
+      content: selectedMessages,
+      isSuggestion: true,
     });
   };
 
-  const showSelectedMessages = () => {
-    console.log("Messages sélectionnés :", selectedMessages);
+  /**
+   * récupérer le message qui sera dans la modale pour une validate
+   * @param {*} message
+   */
+  const suggestionMessage = (message) => {
+    const suggestionsArray = Array.isArray(message) ? message : [message];
+    setSecondModalContent(suggestionsArray);
+    showSecondModal();
+  };
+
+  const sendSuggestionMessage = (suggestion) => {
+    console.log("Messages sugéré  :", suggestion);
+    socket.emit(MESSAGE_EVENT, {
+      content: suggestion,
+    });
   };
 
   /**
@@ -177,18 +202,18 @@ const ChatComponent = () => {
      * @param {*} option
      */
     const handleTranslateClick = (option) => {
-      handleTranslateButtonClick(option, content);
+      sendTranslation(option, content);
     };
 
     /**
      *  Gère le clic sur le bouton Valider
      */
     const handleValidateClick = () => {
-      isValidCkick(content);
+      sendValidation(content);
     };
 
     /**
-     * Gère la selection multiple
+     * Gère la selection multiple sur les messages
      */
     const handleSelectClick = () => {
       const updatedSelectedMessages = isSelected
@@ -196,15 +221,6 @@ const ChatComponent = () => {
         : [...selectedMessages, content];
       setSelectedMessages(updatedSelectedMessages);
     };
-
-    // const handleSelectClick = () => {
-    //   const updatedSelectedMessages = isSelected
-    //     ? selectedMessages.filter(
-    //         (selectedMsg) => selectedMsg.content !== message.content
-    //       )
-    //     : [...selectedMessages, message];
-    //   setSelectedMessages(updatedSelectedMessages);
-    // };
 
     return (
       <div>
@@ -273,6 +289,7 @@ const ChatComponent = () => {
   return (
     <div className="flex flex-col h-screen bg-white dark:bg-gray-800">
       <>
+        {/* Première modale pour la traduction et validation */}
         <Modal
           title={titleModale}
           open={isModalOpen}
@@ -280,6 +297,35 @@ const ChatComponent = () => {
           okButtonProps={{ style: { display: "none" } }}
         >
           <p>{modalContent}</p>
+        </Modal>
+
+        {/* deuxieme modale pour la laliste de suggestion */}
+        <Modal
+          title="Suggestion de réponses"
+          open={isSecondModalOpen}
+          onCancel={handleCancelSecondModal}
+          okButtonProps={{ style: { display: "none" } }}
+        >
+          <ul style={{ listStyleType: "none", padding: 0 }}>
+            {secondModalContent.map((suggestion, index) => (
+              <li key={index} style={{ marginBottom: "20px" }}>
+                <span
+                  style={{ marginRight: "8px" }}
+                  className="suggestion-text"
+                >{`Suggestion ${index + 1}:`}</span>
+                <span className="suggestion-text">
+                  {suggestion}{" "}
+                  <a
+                    href="#"
+                    onClick={() => sendSuggestionMessage(suggestion)}
+                    style={{ color: "blue" }}
+                  >
+                    Envoyer
+                  </a>
+                </span>
+              </li>
+            ))}
+          </ul>
         </Modal>
       </>
       <div className="flex-1 p-4 overflow-y-auto">
@@ -291,14 +337,6 @@ const ChatComponent = () => {
             clientId={userId}
           />
         ))}
-        {/* {messages.map((message, index) => (
-          <MessageComponent
-            key={`${message.content}-${message.timestamp}`}
-            message={message}
-            clientId={message.userId}
-            timestamp={message.timestamp}
-          />
-        ))} */}
       </div>
       <div className="flex items-center p-4 border-t border-gray-700 dark:border-gray-600 gap-3">
         <input
@@ -310,16 +348,6 @@ const ChatComponent = () => {
         />
 
         <div className=" flex gap-3">
-          {messages.length > 0 && (
-            <button
-              type="button"
-              onClick={suggestion}
-              className="text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 dark:bg-blue-600 dark:focus:ring-blue-600 rounded-lg px-4 py-2"
-            >
-              Suggestion
-            </button>
-          )}
-
           <button
             type="button"
             onClick={sendMessage}
@@ -327,13 +355,16 @@ const ChatComponent = () => {
           >
             Envoyer
           </button>
-          <button
-            type="button"
-            onClick={showSelectedMessages}
-            className="text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 dark:bg-blue-600 dark:focus:ring-blue-600 rounded-lg px-4 py-2"
-          >
-            Afficher
-          </button>
+
+          {messages.length > 0 && (
+            <button
+              type="button"
+              onClick={sendSuggestion}
+              className="text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 dark:bg-blue-600 dark:focus:ring-blue-600 rounded-lg px-6 py-2"
+            >
+              Sugestion
+            </button>
+          )}
         </div>
       </div>
     </div>
