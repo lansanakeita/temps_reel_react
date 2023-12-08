@@ -1,13 +1,14 @@
 "use client";
 import "./style.css";
 import React from "react";
-import ChatComponent from "./chat/page";
 
 export default function Home() {
   return (
     <div>
       <header className="header">
-        <h1>Chatbox App</h1>
+        <a href="/">
+          <h1>Chatbox App</h1>
+        </a>
       </header>
 
       <main>
@@ -33,8 +34,10 @@ export default function Home() {
           pour tous. Merci de respecter ces règles et de faire de notre chatbox
           un espace convivial pour tous les utilisateurs.
         </p>
-      
-        <a href="/chat">Messagerie</a>
+
+        <a href="/chat" className="message">
+          Messagerie
+        </a>
       </main>
     </div>
   );

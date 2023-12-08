@@ -27,7 +27,10 @@ main{
   text-align: justify;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
-a {
+main p{
+  font-size: 1.3em;
+}
+.message{
     display: flex;
     justify-content: center;
     align-items: center;
