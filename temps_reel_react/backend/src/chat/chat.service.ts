@@ -7,7 +7,7 @@ export class ChatService {
   private openai: Openai;
 
   constructor() {
-    this.openai = new Openai({ apiKey: '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' });
+    this.openai = new Openai({ apiKey: 'API_KEY' });
   }
 
   /**
